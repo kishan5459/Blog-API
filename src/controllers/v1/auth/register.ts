@@ -1,93 +1,93 @@
 /**
- * Import Custom modules
+ * Node modules
  */
-import { logger } from "@/lib/winston";
-import config from "@/config";
-import { genUsername } from "@/utils"
-import { generateAccessToken, generateRefreshToken } from "@/lib/jwt";
+import mongoose from 'mongoose';
+
+/**
+ * Custom modules
+ */
+import { generateAccessToken, generateRefreshToken } from '@/lib/jwt';
+import { genUsername } from '@/utils';
+import { logger } from '@/lib/winston';
 
 /**
  * Models
  */
-import User from "@/models/user";
-import Token from "@/models/token"
+import User from '@/models/user';
+import Token from '@/models/token';
 
 /**
- * Import Types
+ * Config
  */
-import type { Request, Response } from "express";
-import type { IUser } from "@/models/user";
-import { token } from "morgan";
+import config from '@/config';
 
-type UserData = Pick<IUser, 'email' | 'password' | 'role'>
+/**
+ * Types
+ */
+import type { Request, Response } from 'express';
+import type { IUser } from '@/models/user';
 
-const filenameObj = { __filename }
+type UserData = Pick<IUser, 'email' | 'password' | 'role'>;
 
 const register = async (req: Request, res: Response): Promise<void> => {
-  const { email, password, role } = req.body as UserData
+  const { email, password, role } = req.body as UserData;
 
-  if(role === 'admin' && !config.WHITELIST_ADMIN_EMAILS.includes(email)){
-    console.log(config.WHITELIST_ADMIN_EMAILS)
+  if (role === 'admin' && !config.WHITELIST_ADMINS_MAIL.includes(email)) {
     res.status(403).json({
-      code: "AuthorizationError",
-      message: "You cannot register as an admin"
-    })
-    logger.warn(`User with email ${email} tried to register as an admin but it not in the whitelist`)
-    return
+      code: 'AuthorizationError',
+      message: 'You cannot register as an admin',
+    });
+
+    logger.warn(
+      `User with email ${email} tried to register as an admin but is not in the whitelist`,
+    );
+    return;
   }
 
   try {
-    const username = genUsername()
+    const username = genUsername();
 
     const newUser = await User.create({
       username,
       email,
       password,
-      role
-    })
+      role,
+    });
 
-    // Generate access token and refresh token for new user
-    const accessToken = generateAccessToken(newUser._id)
-    const refreshToken = generateRefreshToken(newUser._id)
+    const accessToken = generateAccessToken(newUser._id);
+    const refreshToken = generateRefreshToken(newUser._id);
 
-    // Store refresh token in db
-    await Token.create({ token: refreshToken, userId: newUser._id })
+    await Token.create({ token: refreshToken, userId: newUser._id });
     logger.info('Refresh token created for user', {
       userId: newUser._id,
       token: refreshToken,
-      ...filenameObj
-    })
+    });
 
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: config.NODE_ENV === 'production',
-      sameSite: "strict"
-    })
+      sameSite: 'strict',
+    });
 
     res.status(201).json({
       user: {
         username: newUser.username,
         email: newUser.email,
-        role: newUser.role
+        role: newUser.role,
       },
-      accessToken
-    })
+      accessToken,
+    });
 
-    logger.info('User registered successfully', {
-      username: newUser.username,
-      email: newUser.email,
-      role: newUser.role, 
-      ...filenameObj
-    })
-  } catch (error) {
+    logger.info('User registered successfully', newUser);
+  } catch (err) {
     res.status(500).json({
-      code: "ServerError",
-      message: "Internal server error",
-      error: error
-    })
+      code: 'ServerError',
+      message: 'Internal server error',
+      error: err,
+    });
 
-    logger.error('Error during user registration', { error, ...filenameObj })
+    logger.error('Error during user registration', err);
   }
-}
+};
 
-export default register 
+export default register;

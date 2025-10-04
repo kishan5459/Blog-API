@@ -1,60 +1,62 @@
 /**
- * Node Modules
+ * Node modules
  */
-import { v2 as cloudinary } from "cloudinary"
+import { v2 as cloudinary } from 'cloudinary';
 
 /**
- * Import Custom modules
+ * Custom modules
  */
-import { logger } from "@/lib/winston";
+import { logger } from '@/lib/winston';
 
 /**
- * Import Models
+ * Models
  */
-import User from "@/models/user";
-import Blog from "@/models/blog";
+import User from '@/models/user';
+import Blog from '@/models/blog';
 
 /**
- * Import Types
+ * Types
  */
-import type { Request, Response } from 'express'
-
-const filenameObj = { __filename }
+import type { Request, Response } from 'express';
 
 const deleteUser = async (req: Request, res: Response): Promise<void> => {
-  const userId = req.params.userId
+  const userId = req.params.userId;
 
   try {
     const blogs = await Blog.find({ author: userId })
-    .select("banner.publicId")
-    .lean()
-    .exec()
-    const publicIds = blogs.map(({banner}) => banner.publicId)
+      .select('banner.publicId')
+      .lean()
+      .exec();
 
-    await cloudinary.api.delete_resources(publicIds)
-    logger.info("Multiple blog banners deleted from Cloudinary", {
-      publicIds,
-      ...filenameObj
-    })
+    if (blogs.length) {
+      const publicIds = blogs.map(({ banner }) => banner.publicId);
+      await cloudinary.api.delete_resources(publicIds);
+      logger.info('Multiple blog banners deleted from cloudinary', {
+        publicIds,
+      });
 
-    await Blog.deleteMany({ author: userId })
-    logger.info("Multiple blogs deleted", {
+      await Blog.deleteMany({ author: userId });
+      logger.info('Multiple blogs deleted', {
+        userId,
+        blogs,
+      });
+    }
+
+    await User.deleteOne({ _id: userId });
+    logger.info('A user account deleted', {
       userId,
-      blogs
-    })
-    await User.deleteOne({ _id: userId })
-    logger.info('A user account has been deleted', { userId, ...filenameObj })
+    });
 
-    res.sendStatus(204)
-  } catch (error) {
+    res.sendStatus(204);
+  } catch (err) {
     res.status(500).json({
-      code: "ServerError",
-      message: "Internal server error",
-      error: error
-    })
+      code: 'ServerError',
+      message: 'Internal server error',
+      error: err,
+    });
 
-    logger.error('Error during deleting user ', { error, ...filenameObj })
+    logger.error('Error while deleting a user', err);
   }
-}
+};
 
-export default deleteUser
+export default deleteUser;

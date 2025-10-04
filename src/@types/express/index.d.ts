@@ -1,17 +1,17 @@
 /**
- * Import Node modules
+ * Node modules
  */
-import * as express from 'express'
+import * as express from 'express';
 
 /**
- * Import Types
+ * Types
  */
-import { Types } from 'mongoose'
+import { Types } from 'mongoose';
 
-declare global{
-  namespace Express{
-    interface Request{
-      userId?: Types.ObjectId
+declare global {
+  namespace Express {
+    interface Request {
+      userId?: Types.ObjectId;
     }
   }
 }

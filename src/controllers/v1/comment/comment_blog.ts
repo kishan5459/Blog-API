@@ -1,80 +1,87 @@
 /**
- * Import Node modules
+ * Custom modules
  */
-import DOMPurify from "dompurify";
-import { JSDOM } from "jsdom"
-
-/**
- * Import Custom Modules
- */
-import { logger } from "@/lib/winston";
+import { logger } from '@/lib/winston';
 
 /**
  * Models
  */
-import Blog from "@/models/blog";
-import Comment from "@/models/comment";
+import Blog from '@/models/blog';
+import Comment from '@/models/comment';
 
 /**
- * Import Types
+ * Types
  */
-import type { Request, Response } from "express";
-import { IComment } from "@/models/comment";
+import type { Request, Response } from 'express';
+import type { IComment } from '@/models/comment';
+import type { Types } from 'mongoose';
+type RequestBody = {
+  content: string;
+};
+type RequestParams = {
+  blogId: string;
+};
 
-type commentData = Pick<IComment, 'content'>
+/**
+ * @function createComment
+ * @description Handles the creation of a comment on a blog post.
+ *              Expects `blogId` and `content` in the request body, and `userId` from the authenticated request.
+ *
+ * @returns {Promise<void>} This function doesn't return a value but sends a response to the client.
+ **/
+const createComment = async (req: Request, res: Response): Promise<void> => {
+  const { blogId } = req.params as RequestParams;
+  // Destructure blogId and content from the request body
+  const { content } = req.body as RequestBody;
 
-const window = new JSDOM("").window
-const purify = DOMPurify(window)
-
-const filenameObj = { __filename }
-
-const commentBlog = async (req: Request, res: Response): Promise<void> => {
-  const { content } = req.body as commentData
-  const { blogId } = req.params
-  const userId = req.userId
+  // Get the authenticated user's ID (set by middleware)
+  const userId = req.userId;
 
   try {
-    const blog = await Blog.findById(blogId).select("likesCount").exec()
+    // Check if the blog post exists by its ID
+    const blog = await Blog.findById(blogId).select('_id commentsCount').exec();
 
-    if(!blog){
+    // If the blog doesn't exist, respond with 404 Not Found
+    if (!blog) {
       res.status(404).json({
-        code: "NotFound",
-        message: "Blog not found"
-      })
-      return
+        code: 'NotFound',
+        message: 'Blog not found!',
+      });
+      return;
     }
 
-    const cleanContent = purify.sanitize(content)
-
+    // Create a new comment linked to the blog and the authenticated user
     const newComment = await Comment.create({
-      blogId,
-      content: cleanContent,
-      userId
-    })
+      blog: blogId,
+      content,
+      user: userId,
+    });
 
-    logger.info("New comment create", { newComment, ...filenameObj })
+    logger.info('New comment created', newComment);
 
+    // Increment the blog's comments count and update
     blog.commentsCount++;
-    await blog.save()
+    await blog.save();
 
-    logger.info("Blog Comment Count Updated successfully", {
+    logger.info('Blog comments count updated', {
       blogId: blog._id,
       commentsCount: blog.commentsCount,
-      ...filenameObj
-    })
+    });
 
+    // Respond with 201 Created and return the new comment
     res.status(201).json({
-      comment: newComment
-    })
-  } catch (error) {
+      comment: newComment,
+    });
+  } catch (err) {
+    // Handle unexpected errors and respond with 500 Internal Server Error
     res.status(500).json({
-      code: "ServerError",
-      message: "Internal server error",
-      error: error
-    })
+      code: 'ServerError',
+      message: 'Internal server error',
+      error: err,
+    });
 
-    logger.error('Error during liking blog ', { error, ...filenameObj })
+    logger.error('Error during comment creation in blog', err);
   }
-}
+};
 
-export default commentBlog
+export default createComment;

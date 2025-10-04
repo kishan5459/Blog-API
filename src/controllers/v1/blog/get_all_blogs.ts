@@ -1,67 +1,62 @@
 /**
- * Import custom modules
+ * Custom modules
  */
-import { logger } from "@/lib/winston";
-import config from "@/config";
+import config from '@/config';
+import { logger } from '@/lib/winston';
 
 /**
- * Import Models
+ * Models
  */
-import Blog from "@/models/blog";
-import User from "@/models/user";
+import Blog from '@/models/blog';
+import User from '@/models/user';
 
 /**
- * Import Types
+ * Types
  */
-import type { Request, Response } from "express";
-
-interface QueryType{
-  status?: 'draft' | 'published'
+import type { Request, Response } from 'express';
+interface QueryType {
+  status?: 'draft' | 'published';
 }
 
-const filenameObj = { __filename }
-
-const getAllBlogs = async (req: Request, res: Response): Promise<void> => {
+const getAllBlogs = async (req: Request, res: Response) => {
   try {
-    const userId = req.userId
-    const limit = parseInt(req.query.limit as string) || config.defaultResLimit
-    const offset = parseInt(req.query.offset as string) || config.defaultResOffset
+    const userId = req.userId;
+    const limit = parseInt(req.query.limit as string) || config.defaultResLimit;
+    const offset =
+      parseInt(req.query.offset as string) || config.defaultResOffset;
+    const query: QueryType = {};
+    const user = await User.findById(userId).select('role').lean().exec();
 
-    const user = await User.findById(userId).select('role').lean().exec()
-    const query: QueryType = {} 
-
-    // show only the published post to a normal user
-    if (user?.role === 'user'){
-      query.status = 'published'
+    // Show only the published post to a normal user
+    if (!user || user.role === 'user') {
+      query.status = 'published';
     }
-    const total = await Blog.countDocuments(query)
-    const blogs = await Blog.find(query)
+
+    const total = await Blog.countDocuments();
+    const blogs = await Blog.find()
       .select('-banner.publicId -__v')
-      .populate('author', "-createdAt -updatedAt -__v")
+      .populate('author', 'firstName lastName username email')
       .limit(limit)
       .skip(offset)
-      .sort({ createdAt:-1 })
+      .sort({ publishedAt: 'desc' })
       .lean()
-      .exec()
-    
+      .exec();
+
     res.status(200).json({
       limit,
       offset,
       total,
-      blogs
-    })
-  } catch (error) {
+      blogs,
+    });
+  } catch (err) {
     res.status(500).json({
-      code: "ServerError",
-      message: "Internal server error",
-      error: error
-    })
+      code: 'ServerError',
+      message: 'Internal server error',
+      error: err,
+    });
 
-    logger.error('Error during fetching all blogs', {
-      error,
-      ...filenameObj
-    })
+    logger.error('Error while fetching blogs', err);
   }
-}
+};
 
-export default getAllBlogs
+export default getAllBlogs;

@@ -1,91 +1,63 @@
 /**
- * Import Node modules
+ * Node modules
  */
-import winston from "winston"
-import path from "path"
+import winston from 'winston';
+import { Logtail } from '@logtail/node';
+import { LogtailTransport } from '@logtail/winston';
 
 /**
- * Import Custom modules
+ * Custom modules
  */
-import config from "@/config"
+import config from '@/config';
 
-const { combine, timestamp, json, errors, align, printf, colorize, label, splat } = winston.format
+const { combine, timestamp, json, errors, align, printf, colorize } =
+  winston.format;
 
-// Define the transports array to hold logging transports
-const transports: winston.transport[] = []
+// Define the transports array to hold different logging transports
+const transports: winston.transport[] = [];
 
-const customLevels = {
-  levels: {
-    error: 0,
-    warn: 1,
-    info: 2,
-    http: 3,     
-    verbose: 4,
-    debug: 5,
-  },
-  colors: {
-    error: 'red',
-    warn: 'yellow',
-    info: 'green',
-    http: 'cyan',
-    verbose: 'magenta',
-    debug: 'blue',
-  }
-};
-
-winston.addColors(customLevels.colors);
-
-const colorizer = winston.format.colorize({ all: false });
-
-const devFormat = printf(info => {
-  // console.log("DEBUG INFO OBJECT:", info);
-  const { timestamp, level, message, label, ...meta } = info;
-
-  let filePath = '';
-  const rawFilename = meta.__filename;
-
-  if (typeof rawFilename === 'string') {
-    // Make filename relative (e.g., src/config/db.ts)
-    const relativePath = path.relative(process.cwd(), rawFilename);
-    filePath = `[${relativePath}]`;
-    delete meta.__filename; // Clean meta
-  }
-
-  const metaStr = Object.keys(meta).length 
-    ? `\n${JSON.stringify(meta, null, 2)}` 
-    : '';
-
-  const logLine = `${timestamp} ${filePath} [${level}] ${String(message).trim()}${metaStr}`;
-
-  // Color the full line using the level's color
-  return colorizer.colorize(level, logLine);
+// Create a Loggly transport instance
+const logtail = new Logtail(config.LOGTAIL_SOURCE_TOKEN, {
+  endpoint: `https://${config.LOGTAIL_INGESTING_HOST}`,
 });
 
+if (config.NODE_ENV === 'production') {
+  if (!config.LOGTAIL_SOURCE_TOKEN || !config.LOGTAIL_INGESTING_HOST) {
+    throw new Error(
+      'Logtail source token and ingesting host must be provided in the configuration.',
+    );
+  }
+
+  transports.push(new LogtailTransport(logtail));
+}
+
 // If the application is not running in production, add a console transport
-if(config.NODE_ENV !== 'production'){
+if (process.env.NODE_ENV !== 'production') {
   transports.push(
     new winston.transports.Console({
       format: combine(
-        timestamp({ format: 'YYYY-MM-DD hh:mm:ss A' }), // Add timestamps to logs
-        splat(),
+        colorize({ all: true }), // Add colors to log levels
+        timestamp({ format: 'YYYY-MM-DD hh:mm:ss A' }), // Add timestamp to logs
         align(), // Align log messages
-        devFormat
-      )
-    })
-  )
+        printf(({ timestamp, level, message, ...meta }) => {
+          const metaStr = Object.keys(meta).length
+            ? `\n${JSON.stringify(meta)}`
+            : '';
+
+          return `${timestamp} [${level.toUpperCase()}]: ${message}${metaStr}`;
+        }),
+      ),
+    }),
+  );
 }
 
-// Create a logger instance using winston
+// Create a logger instance using Winston
 const logger = winston.createLogger({
-  level: config.LOG_LEVEL || 'http', // by default print all logs <= http if not set by env
-  levels: customLevels.levels, // Set the default logging level to `info`
-  format: combine(
-    timestamp(), 
-    errors({ stack: true }), 
-    json()
-  ), // Use JSON format for log messages
+  level: config.LOG_LEVEL || 'info', // Set the default logging level to 'info'
+  format: combine(timestamp(), errors({ stack: true }), json()), // Use JSON format for log messages
+  // Define log transports (where logs should be saved)
   transports,
   silent: config.NODE_ENV === 'test', // Disable logging in test environment
-})
+});
 
-export { logger }
+export { logger, logtail };

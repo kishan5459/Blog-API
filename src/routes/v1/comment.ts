@@ -1,59 +1,52 @@
 /**
- * Import Node modules
+ * Node modules
  */
-import { Router } from "express";
-import { param, body } from "express-validator";
+import { Router } from 'express';
+import { body, param } from 'express-validator';
 
 /**
- * Import Middlewares
+ * Middlewares
  */
-import authenticate from "@/middlewares/authenticate";
-import authorize from "@/middlewares/authorize";
-import validationError from "@/middlewares/validationError";
+import authenticate from '@/middlewares/authenticate';
+import authorize from '@/middlewares/authorize';
+import validationError from '@/middlewares/validationError';
 
 /**
- * Import Controllers
+ * Controllers
  */
-import commentBlog from "@/controllers/v1/comment/comment_blog";
-import getCommentsByBlog from "@/controllers/v1/comment/get_comments_by_blog";
-import deleteComment from "@/controllers/v1/comment/delete_comment";
+import createComment from '@/controllers/v1/comment/comment_blog';
+import getCommentsByBlog from '@/controllers/v1/comment/get_comments_by_blog';
+import deleteComment from '@/controllers/v1/comment/delete_comment';
+import getComments from '@/controllers/v1/comment/get_comments';
 
-const router =  Router()
+const router = Router();
 
 router.post(
-  "/blog/:blogId",
-  authenticate,
-  authorize(['admin', 'user']),
+  '/blog/:blogId', // Route to comment a blog
+  authenticate, // Middleware to verify if the user is authenticated
+  authorize(['admin', 'user']), // Middleware to check if the user has the required role
   param('blogId')
-    .isMongoId()
-    .withMessage("Invalid blog Id"),
-  body("content")
-    .trim()
     .notEmpty()
-    .withMessage("Content is required"),
+    .withMessage('Blog id is required')
+    .isMongoId()
+    .withMessage('Invalid blog id'),
+  body('content').notEmpty().withMessage('Content is required'),
   validationError,
-  commentBlog
-)
+  createComment, // Controller function that handles the "comment" logic
+);
+
+router.get('/', authenticate, authorize(['admin']), getComments);
 
 router.get(
-  "/blog/:blogId",
-  authenticate,
-  authorize(['admin', 'user']),
-  param('blogId')
-    .isMongoId()
-    .withMessage("Invalid blog Id"),
-  validationError,
-  getCommentsByBlog
-)
+  '/blog/:slug', // Route to get all comments associate with the specific blog post
+  getCommentsByBlog, // Controller function that handles the "get comment" logic
+);
 
 router.delete(
-  '/:commentId',
-  authenticate,
-  authorize(['admin', 'user']),
-  param('commmentId')
-    .isMongoId()
-    .withMessage("Invalid Comment ID"),
-  deleteComment
-)
+  '/:commentId', // Route to delete a comment
+  authenticate, // Middleware to verify if the user is authenticated
+  authorize(['admin', 'user']), // Middleware to check if the user has the required role
+  deleteComment, // Controller function that handles the "comment delete" logic
+);
 
-export default router
+export default router;

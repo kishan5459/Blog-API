@@ -1,100 +1,94 @@
 /**
- * Import Custom Modules
+ * Custom modules
  */
-import uploadToCloudinary from "@/lib/cloudinary";
-import { logger } from "@/lib/winston";
+import uploadToCloudinary from '@/lib/cloudinary';
+import { logger } from '@/lib/winston';
 
 /**
- * Import Models
+ * Models
  */
-import Blog from "@/models/blog";
+import Blog from '@/models/blog';
 
 /**
- * Import Types
+ * Types
  */
-import type { Request, Response, NextFunction } from "express"
-import { UploadApiErrorResponse } from "cloudinary";
+import type { Request, Response, NextFunction } from 'express';
+import type { UploadApiErrorResponse } from 'cloudinary';
 
 /**
- * Import Constants
+ * Constants
  */
-const MAX_FILE_SIZE = 2 * 1024 * 1024 //2 MB
+const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2 MB
 
-const filenameObj = { __filename }
-
-const uploadBlogBanner = (method: "post" | "put") => {
+const uploadBlogBanner = (method: 'post' | 'put') => {
   return async (req: Request, res: Response, next: NextFunction) => {
-    if(method === 'put' && !req.file){
-      next()
-      return
+    if (method === 'put' && !req.file) {
+      next();
+      return;
     }
 
-    if(!req.file){
+    if (!req.file) {
       res.status(400).json({
         code: 'ValidationError',
-        message: "Blog banner is required"
-      })
-      return
+        message: 'Blog banner is required',
+      });
+      return;
     }
 
-    if(req.file.size > MAX_FILE_SIZE){
+    if (req.file.size > MAX_FILE_SIZE) {
       res.status(413).json({
-        code: "ValidationError",
-        message: "File size must be less than 2MB"
-      })
-      return
+        code: 'ValidationError',
+        message: 'File size must be less than 2MB',
+      });
+      return;
     }
 
     try {
-      const { blogId } = req.params
-      const blog = await Blog.findById(blogId).select('banner.publicId').exec()
+      const { blogId } = req.params;
+      const blog = await Blog.findById(blogId).select('banner.publicId').exec();
 
       const data = await uploadToCloudinary(
         req.file.buffer,
-        blog?.banner.publicId.replace('blog-api/', "")
-      )
+        blog?.banner.publicId.replace('blog-api/', ''),
+      );
 
-      if(!data){
+      if (!data) {
         res.status(500).json({
-          code: "ServerError",
-          message: "Internal Server Error"
-        })
+          code: 'ServerError',
+          message: 'Internal server error',
+        });
 
-        logger.error("Error while uploading blog banner to cloudinary",{
+        logger.error('Error while uploading blog banner to cloudinary', {
           blogId,
           publicId: blog?.banner.publicId,
-          ...filenameObj
-        })
-        return
+        });
+        return;
       }
 
       const newBanner = {
         publicId: data.public_id,
         url: data.secure_url,
         width: data.width,
-        height: data.height
-      }
+        height: data.height,
+      };
 
-      logger.info("Blog banner uploaded to Cloudinary", {
+      logger.info('Blog banner uploaded to cloudinary', {
         blogId,
         banner: newBanner,
-        ...filenameObj
-      })
+      });
 
-      req.body.banner = newBanner
-      next()
-    } catch (error: UploadApiErrorResponse | any) {
-      res.status(error.http_code).json({
-        code: error.http_code < 500 ? "ValidationError" : error.name,
-        message: error.message
-      })
+      req.body.banner = newBanner;
 
-      logger.error("Error while uploading blog banner to Cloudinary", {
-        error,
-        ...filenameObj
-      })
+      next();
+    } catch (err: UploadApiErrorResponse | any) {
+      res.status(err.http_code).json({
+        code: err.http_code < 500 ? 'ValidationError' : err.name,
+        message: err.message,
+      });
+
+      logger.error('Error while uploading blog banner to cloudinary', err);
     }
-  }
-}
+  };
+};
 
-export default uploadBlogBanner
+export default uploadBlogBanner;

@@ -1,85 +1,103 @@
 /**
- * Import Custom Modules
+ * Custom modules
  */
-import { logger } from "@/lib/winston";
+import { logger } from '@/lib/winston';
 
 /**
  * Models
  */
-import Blog from "@/models/blog";
-import Comment from "@/models/comment";
-import User from "@/models/user";
+import Comment from '@/models/comment';
+import User from '@/models/user';
+import Blog from '@/models/blog';
 
 /**
- * Import Types
+ * Types
  */
-import type { Request, Response } from "express";
-
-const filenameObj = { __filename }
+import type { Request, Response } from 'express';
 
 const deleteComment = async (req: Request, res: Response): Promise<void> => {
-  const { commentId } = req.params
-  const currentUserId = req.userId
+  // Retrieve current userId from the request object
+  const currentUserId = req.userId;
+
+  // Extract commentId from request object
+  const { commentId } = req.params;
 
   try {
-    const comment = await Comment.findById(commentId).select("userId blogId").lean().exec()
-    const user = await User.findById(currentUserId).select('role').lean().exec()
+    // Find the comment by ID and select only userID field
+    const comment = await Comment.findById(commentId)
+      .select('user blog')
+      .exec();
 
-    if(!comment){
+    // Retrieve the current user's role from the database using their ID
+    const user = await User.findById(currentUserId).select('role').exec();
+
+    // Respond 404 NotFound if comment doesn't exist
+    if (!comment) {
       res.status(404).json({
-        code: "NotFound",
-        message: "Comment not found"
-      })
-      return
+        code: 'NotFound',
+        message: 'Comment not found!',
+      });
+      return;
     }
 
-    const blog = await Blog.findById(comment.blogId).select('commentsCount').exec()
-
-    if(!blog){
-      res.status(404).json({
-        code: "NotFound",
-        message: "Blog not found"
-      })
-      return
-    }
-
-    if(comment.userId !== currentUserId && user?.role !== 'admin'){
+    // Check if the current user is neither the owner of the comment nor an admin
+    if (comment.user !== currentUserId && user?.role !== 'admin') {
+      // If not authorized, respond with 403 Forbidden
       res.status(403).json({
-        code: "AuthorizationError",
-        message: "Access denied, insufficient permission"
-      })
+        code: 'AuthorizationError',
+        message: 'Access denied insufficient permission',
+      });
 
       logger.warn('A user tried to delete a comment without permission', {
         userId: currentUserId,
-        comment
-      })
-      return
+        comment,
+      });
+      return;
     }
 
-    await Comment.deleteOne({ _id: commentId })
+    // Delete the comment by it's ID
+    await comment.deleteOne({ _id: commentId });
 
-    logger.info("Comment deleted successfully", {
-      commentId
-    })
+    logger.info('Comment deleted successfully', {
+      commentId,
+    });
 
-    blog.commentsCount--
-    await blog.save()
+    // Find the blog its id and select commentsCount field
+    const blog = await Blog.findById(comment.blog)
+      .select('commentsCount')
+      .exec();
+
+    // Respond 404 not found if blog doesn't exist
+    if (!blog) {
+      res.status(404).json({
+        code: 'NotFound',
+        message: 'Blog not found',
+      });
+      return;
+    }
+
+    // Decrement the commentsCount and update the blog to the database
+    blog.commentsCount--;
+    await blog.save();
 
     logger.info('Blog comments count updated', {
       blogId: blog._id,
-      commentsCount: blog.commentsCount
-    })
+      commentsCount: blog.commentsCount,
+    });
 
-    res.sendStatus(204)
-  } catch (error) {
+    // Sends 204 successful status
+    res.sendStatus(204);
+    return;
+  } catch (err) {
+    // Handle unexpected server error
     res.status(500).json({
-      code: "ServerError",
-      message: "Internal server error",
-      error: error
-    })
+      code: 'ServerError',
+      message: 'Internal server error',
+      error: err,
+    });
 
-    logger.error('Error while deleting comments ', { error, ...filenameObj })
+    logger.error('Error while deleting comment', err);
   }
-}
+};
 
-export default deleteComment
+export default deleteComment;

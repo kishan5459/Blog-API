@@ -1,52 +1,65 @@
 /**
- * Import Custom Modules
+ * Custom modules
  */
-import { logger } from "@/lib/winston";
+import { logger } from '@/lib/winston';
 
 /**
- * Models
+ * Model
  */
-import Blog from "@/models/blog";
-import Comment from "@/models/comment";
+import Blog from '@/models/blog';
+import Comment from '@/models/comment';
 
 /**
- * Import Types
+ * Types
  */
-import type { Request, Response } from "express";
+import type { Request, Response } from 'express';
 
-const filenameObj = { __filename }
-
-const getCommentsByBlog = async (req: Request, res: Response): Promise<void> => {
-  const { blogId } = req.params
+/**
+ * @function getCommentsByBlog
+ * @description Retrieve all comments associate with the specific blog post
+ * @returns {Promise<void>} Responds with list of comments or and appropriate error message
+ */
+const getCommentsByBlog = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  // Destructure blogId from the request params
+  const { slug } = req.params;
 
   try {
-    const blog = await Blog.findById(blogId).select("_id").lean().exec()
+    // Check if the blog post exist by its ID
+    const blog = await Blog.findOne({ slug }).select('_id').exec();
 
-    if(!blog){
+    // If the blog doesn't exist, respond with 404 not fount
+    if (!blog) {
       res.status(404).json({
-        code: "NotFound",
-        message: "Blog not found"
-      })
-      return
+        code: 'NotFound',
+        message: 'Blog not found!',
+      });
+      return;
     }
 
-    const allComments = await Comment.find({ blogId })
-      .sort({ createdAt: -1 })
+    // Find the all comments where blog ID matches
+    const allComments = await Comment.find({ blog: blog._id })
+      .populate('blog', 'banner.url title slug')
+      .populate('user', 'username firstName lastName')
       .lean()
-      .exec()
+      .exec();
 
+    // Responds 201 OK and the list of the comments
     res.status(201).json({
-      comments: allComments
-    })
-  } catch (error) {
+      comments: allComments,
+    });
+  } catch (err) {
+    // Handle unexpected error and respond with 500 Server Error
     res.status(500).json({
-      code: "ServerError",
-      message: "Internal server error",
-      error: error
-    })
+      code: 'ServerError',
+      message: 'Internal server error',
+      error: err,
+    });
 
-    logger.error('Error while retrieving comments ', { error, ...filenameObj })
+    logger.error('Error retrieving comments', err);
   }
-}
+};
 
-export default getCommentsByBlog
+export default getCommentsByBlog;

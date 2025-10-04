@@ -1,67 +1,62 @@
 /**
- * Import Node modules
+ * Node modules
  */
-import DOMPurify from "dompurify";
-import { JSDOM } from "jsdom"
+import DOMPurify from 'dompurify';
+import { JSDOM } from 'jsdom';
 
 /**
- * Import Custom Modules
+ * Custom modules
  */
-import { logger } from "@/lib/winston";
+import { logger } from '@/lib/winston';
 
 /**
  * Models
  */
-import Blog from "@/models/blog";
+import Blog from '@/models/blog';
 
 /**
- * Import Types
+ * Types
  */
-import type { Request, Response } from "express";
-import type { IBlog } from "@/models/blog";
+import type { Request, Response } from 'express';
+import type { IBlog } from '@/models/blog';
 
-type BlogData = Pick<IBlog, "title" | 'content' | 'banner' | 'status'>
+type BlogData = Pick<IBlog, 'title' | 'content' | 'banner' | 'status'>;
 
 /**
  * Purify the blog content
  */
-const window = new JSDOM("").window
-const purify = DOMPurify(window)
+const window = new JSDOM('').window;
+const purify = DOMPurify(window);
 
-const filenameObj = { __filename }
-
-const createBlog = async (req: Request, res: Response): Promise<void> => {
+const createBlog = async (req: Request, res: Response) => {
   try {
-    const { title, content, banner, status } = req.body as BlogData
-    const userId = req.userId
+    const { title, content, banner, status } = req.body as BlogData;
+    const userId = req.userId;
 
-    const cleanContent = purify.sanitize(content)
-    console.log(cleanContent)
-    console.log(banner)
-    console.log(userId)
+    const cleanContent = purify.sanitize(content);
+
     const newBlog = await Blog.create({
       title,
       content: cleanContent,
       banner,
       status,
-      author: userId
-    })
-    // console.log(newBlog)
+      author: userId,
+    });
 
-    logger.info("New blog created", { newBlog, ...filenameObj})
+    logger.info('New blog created', newBlog);
 
     res.status(201).json({
-      blog: newBlog
-    })
-  } catch (error) {
+      blog: newBlog,
+    });
+  } catch (err) {
     res.status(500).json({
-      code: "ServerError",
-      message: "Internal server error",
-      error: error
-    })
+      code: 'ServerError',
+      message: 'Internal server error',
+      error: err,
+    });
 
-    logger.error('Error during creating blog ', { error, ...filenameObj })
+    logger.error('Error during blog creation', err);
   }
-}
+};
 
-export default createBlog
+export default createBlog;

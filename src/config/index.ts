@@ -1,36 +1,39 @@
 /**
- * @copyright 2025 codewithsadee
- * @license Apache-2.0
+ * Node modules
  */
+import dotenv from 'dotenv';
 
 /**
- * Import Node modules
+ * Types
  */
-import dotenv from "dotenv"
+import type ms from 'ms';
 
-/**
- * Import Types
- */
-import type ms from 'ms'
-
-dotenv.config()
+dotenv.config();
 
 const config = {
   PORT: process.env.PORT || 3000,
-  NODE_ENV: process.env.NODE_ENV,
-  WHITELIST_ORIGINS: ["https://docs.for.this.API.com"],
-  MONGO_URI: process.env.MONGO_LOCAL,
-  LOG_LEVEL: process.env.LOG_LEVEL,
+  NODE_ENV: process.env.NODE_ENV!,
+  WHITELIST_ORIGINS: [
+    // 'https://blog.xyz.com',
+    // 'https://docs.blog-api.xyz.com',
+  ],
+  MONGO_URI: process.env.MONGO_URI!,
+  LOGTAIL_SOURCE_TOKEN: process.env.LOGTAIL_SOURCE_TOKEN!,
+  LOGTAIL_INGESTING_HOST: process.env.LOGTAIL_INGESTING_HOST!,
+  LOG_LEVEL: process.env.LOG_LEVEL || 'info',
   JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET!,
   JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET!,
   ACCESS_TOKEN_EXPIRY: process.env.ACCESS_TOKEN_EXPIRY as ms.StringValue,
   REFRESH_TOKEN_EXPIRY: process.env.REFRESH_TOKEN_EXPIRY as ms.StringValue,
-  WHITELIST_ADMIN_EMAILS: process.env.WHITELIST_ADMIN_EMAILS?.split(',') || [],
   defaultResLimit: 20,
   defaultResOffset: 0,
   CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME!,
   CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY!,
   CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET!,
-}
+  WHITELIST_ADMINS_MAIL: [
+    process.env.MAIL_HR,
+    "blog.admin@gmail.com"
+  ],
+};
 
-export default config
+export default config;

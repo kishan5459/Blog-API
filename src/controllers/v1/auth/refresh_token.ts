@@ -1,76 +1,72 @@
 /**
- * Imports Node modules
+ * Node modules
  */
-import { JsonWebTokenError, TokenExpiredError } from "jsonwebtoken";
+import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
 
 /**
- * Import Custom module
+ * Custom modules
  */
-import { logger } from "@/lib/winston";
-import { generateAccessToken, verifyRefreshToken } from "@/lib/jwt";
+import { verifyRefreshToken, generateAccessToken } from '@/lib/jwt';
+import { logger } from '@/lib/winston';
 
 /**
- * Import Models
+ * Models
  */
-import Token from "@/models/token";
+import Token from '@/models/token';
 
 /**
- * Import Types
+ * Types
  */
-import type { Request, Response } from "express";
-import { Types } from "mongoose";
-
-const filenameObj = { __filename }
+import type { Request, Response } from 'express';
+import { Types } from 'mongoose';
 
 const refreshToken = async (req: Request, res: Response) => {
-  const refreshToken = req.cookies.refreshToken as string
+  const refreshToken = req.cookies.refreshToken as string;
 
   try {
-    const tokenExists = await Token.exists({ token: refreshToken })
-    console.log(tokenExists)
-    if(!tokenExists){
+    const tokenExists = await Token.exists({ token: refreshToken });
+    if (!tokenExists) {
       res.status(401).json({
         code: 'AuthenticationError',
-        message: 'Invalid refresh token'
-      })
-      return
+        message: 'Invalid refresh token',
+      });
+      return;
     }
 
-    // Verify refresh token
-    const jwtPayload = verifyRefreshToken(refreshToken) as { userId: Types.ObjectId }
-    const accessToken = generateAccessToken(jwtPayload.userId)
+    const jwtPayload = verifyRefreshToken(refreshToken) as {
+      userId: Types.ObjectId;
+    };
+
+    const accessToken = generateAccessToken(jwtPayload.userId);
 
     res.status(200).json({
-      accessToken
-    })
-  } catch (error) {
-    if(error instanceof TokenExpiredError){
+      accessToken,
+    });
+  } catch (err) {
+    if (err instanceof TokenExpiredError) {
       res.status(401).json({
-        code: "AuthenticationError",
-        message: "Refresh token expired, please login again"
-      })
-      return
+        code: 'AuthenticationError',
+        message: 'Refresh token expired, please login again',
+      });
+      return;
     }
 
-    if(error instanceof JsonWebTokenError){
+    if (err instanceof JsonWebTokenError) {
       res.status(401).json({
-        code: "AuthenticationError",
-        message: "Invalid refresh token"
-      })
-      return
+        code: 'AuthenticationError',
+        message: 'Invalid refresh token',
+      });
+      return;
     }
 
     res.status(500).json({
-      code: "ServerError",
-      message: "Internal server error",
-      error: error
-    })
+      code: 'ServerError',
+      message: 'Internal server error',
+      error: err,
+    });
 
-    logger.error('Error during refresh token', {
-      error,
-      ...filenameObj
-    })
+    logger.error('Error during refresh token', err);
   }
-}
+};
 
-export default refreshToken
+export default refreshToken;

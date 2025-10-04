@@ -1,30 +1,30 @@
 /**
- * Import Node modules
+ * Node modules
  */
-import { Router } from "express";
-import { body, cookie } from "express-validator";
-import bcrypt from "bcrypt"
+import { Router } from 'express';
+import { body, cookie } from 'express-validator';
+import bcrypt from 'bcrypt';
 
 /**
- * Import Controllers
+ * Controllers
  */
-import register from "@/controllers/v1/auth/register";
-import login from "@/controllers/v1/auth/login";
-import refreshToken from "@/controllers/v1/auth/refresh_token";
-import logout from "@/controllers/v1/auth/logout"
+import register from '@/controllers/v1/auth/register';
+import login from '@/controllers/v1/auth/login';
+import refreshToken from '@/controllers/v1/auth/refresh_token';
+import logout from '@/controllers/v1/auth/logout';
 
 /**
- * Import middlewares
+ * Middlewares
  */
-import validationError from "@/middlewares/validationError";
-import authenticate from "@/middlewares/authenticate";
+import validationError from '@/middlewares/validationError';
+import authenticate from '@/middlewares/authenticate';
 
 /**
- * Import Models
+ * Models
  */
-import User from "@/models/user";
+import User from '@/models/user';
 
-const router = Router()
+const router = Router();
 
 router.post(
   '/register',
@@ -37,16 +37,16 @@ router.post(
     .isEmail()
     .withMessage('Invalid email address')
     .custom(async (value) => {
-      const userExists = await User.exists({ email: value })
-      if(userExists){
-        throw new Error('User already exists')
+      const userExists = await User.exists({ email: value });
+      if (userExists) {
+        throw new Error('User email or password is invalid');
       }
-    }), 
+    }),
   body('password')
     .notEmpty()
     .withMessage('Password is required')
     .isLength({ min: 8 })
-    .withMessage('Passwordmust be at least 8 characters long'),
+    .withMessage('Password must be at least 8 characters long'),
   body('role')
     .optional()
     .isString()
@@ -54,8 +54,8 @@ router.post(
     .isIn(['admin', 'user'])
     .withMessage('Role must be either admin or user'),
   validationError,
-  register
-)
+  register,
+);
 
 router.post(
   '/login',
@@ -68,46 +68,58 @@ router.post(
     .isEmail()
     .withMessage('Invalid email address')
     .custom(async (value) => {
-      const userExists = await User.exists({ email: value })
-      if(!userExists){
-        throw new Error('User email or password is invalid')
+      const userExists = await User.exists({ email: value });
+      if (!userExists) {
+        throw new Error('User email or password is invalid');
       }
-    }), 
+    }),
   body('password')
     .notEmpty()
     .withMessage('Password is required')
     .isLength({ min: 8 })
-    .withMessage('Passwordmust be at least 8 characters long')
+    .withMessage('Password must be at least 8 characters long')
     .custom(async (value, { req }) => {
-      const { email } = req.body as { email: string }
+      const { email } = req.body as { email: string };
       const user = await User.findOne({ email })
         .select('password')
         .lean()
-        .exec()
-      if(!user){
-        throw new Error('User email or password is invalid')
+        .exec();
+
+      if (!user) {
+        throw new Error('User email or password is invalid');
       }
 
-      const passwordMatch = await bcrypt.compare(value, user.password)
-      if(!passwordMatch){
-        throw new Error('User email or password is invalid')
+      const passwordMatch = await bcrypt.compare(value, user.password);
+
+      if (!passwordMatch) {
+        throw new Error('User email or password is invalid');
       }
     }),
   validationError,
-  login
-)
+  login,
+);
 
 router.post(
   '/refresh-token',
   cookie('refreshToken')
     .notEmpty()
-    .withMessage("Refresh token required")
+    .withMessage('Refresh token required')
     .isJWT()
-    .withMessage("Invalid refresh token"),
+    .withMessage('Invalid refresh token'),
   validationError,
-  refreshToken
-)
+  refreshToken,
+);
 
-router.post('/logout', authenticate, logout)
+router.post(
+  '/logout',
+  authenticate,
+  cookie('refreshToken')
+    .notEmpty()
+    .withMessage('Refresh token required')
+    .isJWT()
+    .withMessage('Invalid refresh token'),
+  validationError,
+  logout,
+);
 
-export default router
+export default router;

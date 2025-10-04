@@ -1,22 +1,23 @@
 /**
- * Import Custom modules
+ * Custom modules
  */
-import { logger } from "@/lib/winston";
+import { logger } from '@/lib/winston';
 
 /**
- * Import Models
+ * Models
  */
-import User from "@/models/user";
+import User from '@/models/user';
 
 /**
- * Import Types
+ * Types
  */
-import type { Request, Response } from "express";
+import type { Request, Response } from 'express';
 
-const filenameObj = { __filename }
-
-const updateCurrentUser = async (req: Request, res: Response): Promise<void> => {
-  const userId = req.userId
+const updateCurrentUser = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  const userId = req.userId;
   const {
     username,
     email,
@@ -28,48 +29,50 @@ const updateCurrentUser = async (req: Request, res: Response): Promise<void> => 
     instagram,
     linkedin,
     x,
-    youtube
-  } = req.body
+    youtube,
+  } = req.body;
 
   try {
-    const user = await User.findById(userId).select('+password -__v').exec()
+    const user = await User.findById(userId).select('+password -__v').exec();
 
-    if(!user) {
+    if (!user) {
       res.status(404).json({
-        code: "NotFound",
-        message: "User not found"
-      })
-      return
+        code: 'NotFound',
+        message: 'User not found',
+      });
+      return;
     }
 
-    if(username) user.username = username
-    if(email) user.email = email
-    if(password) user.password = password
-    if(first_name) user.firstName = first_name
-    if(last_name) user.lastName = last_name
-    if(!user.socialLinks) {
-      user.socialLinks = {}
+    if (username) user.username = username;
+    if (email) user.email = email;
+    if (password) user.password = password;
+    if (first_name) user.firstName = first_name;
+    if (last_name) user.lastName = last_name;
+    if (!user.socialLinks) {
+      user.socialLinks = {};
     }
-    if(website) user.socialLinks.website = website
-    if(facebook) user.socialLinks.facebook = facebook
-    if(instagram) user.socialLinks.instagram = instagram
-    if(linkedin) user.socialLinks.linkedin = linkedin
-    if(x) user.socialLinks.x = x
-    if(youtube) user.socialLinks.youtube = youtube
-    
-    await user.save()
-    logger.info('User updated successfully', { user, ...filenameObj })
+    if (website) user.socialLinks.website = website;
+    if (facebook) user.socialLinks.facebook = facebook;
+    if (instagram) user.socialLinks.instagram = instagram;
+    if (linkedin) user.socialLinks.linkedin = linkedin;
+    if (x) user.socialLinks.x = x;
+    if (youtube) user.socialLinks.youtube = youtube;
 
-    res.status(200).json({ user })
-  } catch (error) {
+    await user.save();
+    logger.info('User updated successfully', user);
+
+    res.status(200).json({
+      user,
+    });
+  } catch (err) {
     res.status(500).json({
-      code: "ServerError",
-      message: "Internal server error",
-      error: error
-    })
+      code: 'ServerError',
+      message: 'Internal server error',
+      error: err,
+    });
 
-    logger.error('Error during logout', { error, ...filenameObj })
+    logger.error('Error while updating current user', err);
   }
-}
+};
 
-export default updateCurrentUser
+export default updateCurrentUser;

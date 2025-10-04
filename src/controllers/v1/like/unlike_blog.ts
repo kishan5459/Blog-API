@@ -1,69 +1,86 @@
 /**
- * Import Custom Modules
+ * Custom modules
  */
-import { logger } from "@/lib/winston";
-import blog from "@/models/blog";
+import { logger } from '@/lib/winston';
 
 /**
- * Models
+ * Model
  */
-import Blog from "@/models/blog";
-import Like from "@/models/like";
+import Like from '@/models/like';
+import Blog from '@/models/blog';
 
 /**
- * Import Types
+ * Type
  */
-import type { Request, Response } from "express";
+import { Request, Response } from 'express';
 
-const filenameObj = { __filename }
-
+/**
+ * @function unlikeBlog
+ * @description Handles unlike blog-post by decrementing its likes count.
+ *              Expects `blogId` in the request parameters.
+ *
+ * @param {Request} req - Express request object containing the blogId in the route params.
+ * @param {Response} res - Express response object used to send the result.
+ *
+ * @returns {Promise<void>} Responds with a success message or appropriate error.
+ */
 const unlikeBlog = async (req: Request, res: Response): Promise<void> => {
-  const { blogId } = req.params
-  const { userId } = req.body
+  // Extract the current userId form request body
+  const { userId } = req.body;
+
+  // Extract the blogId
+  const { blogId } = req.params;
 
   try {
-    const existingLike = await Like.findOne({ userId, blogId }).lean().exec()
+    // Check if the like entry exists for the current user and blog
+    const existingLike = await Like.findOne({ userId, blogId }).lean().exec();
 
-    if(!existingLike){
-      res.status(404).json({
-        code: "NotFound",
-        message: "Like not found"
-      })
-      return
+    if (!existingLike) {
+      // If no like found, respond with 400 Bad Request
+      res.status(400).json({
+        code: 'BadRequest',
+        message: 'Like not found',
+      });
+      return;
     }
 
-    await Like.deleteOne({ _id: existingLike._id})
+    // Remove the like entry from the database
+    await Like.deleteOne({ _id: existingLike._id });
 
-    const blog = await Blog.findById(blogId).select('likesCount').exec()
+    // Retrieve the blog to update its like count
+    const blog = await Blog.findById(blogId).select('likesCount').exec();
 
-    if(!blog){
+    if (!blog) {
+      // If the blog doesn't exist, respond with 404 Not Found
       res.status(404).json({
-        code: "NotFound",
-        message: "Blog not found"
-      })
-      return
+        code: 'NotFound',
+        message: 'Blog not found',
+      });
+      return;
     }
 
-    blog.likesCount--
-    await blog.save()
+    // Decrease the blog's like count by one
+    blog.likesCount--;
+    await blog.save();
 
-    logger.info("Blog unliked successfully",{
+    logger.info('Blog unliked successfully', {
       userId,
       blogId: blog._id,
       likesCount: blog.likesCount,
-      ...filenameObj
-    })
+    });
 
-    res.sendStatus(204)
-  } catch (error) {
+    // Send 204 No Content to indicate successful unlike with no response body
+    res.sendStatus(204);
+  } catch (err) {
+    // Handler server level error
     res.status(500).json({
-      code: "ServerError",
-      message: "Internal server error",
-      error: error
-    })
+      code: 'ServerError',
+      message: 'Internal server error',
+      error: err,
+    });
 
-    logger.error('Error during unliking blog ', { error, ...filenameObj })
+    logger.error('Error while unliking blog', err);
   }
-}
+};
 
-export default unlikeBlog
+export default unlikeBlog;

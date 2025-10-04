@@ -1,23 +1,33 @@
-import { Schema, model, Types } from "mongoose"
+/**
+ * Node modules
+ */
+import { Schema, model, Types } from 'mongoose';
 
-interface ILike{
-  blogId?: Types.ObjectId
-  userId: Types.ObjectId
-  commentId?: Types.ObjectId
+// Interface representing the structure of a like document
+interface ILike {
+  // ID of the blog post that was liked
+  blogId?: Types.ObjectId;
+
+  // ID of the user who liked the blog or comment
+  userId: Types.ObjectId;
+
+  // ID of the comment that was liked
+  commentId?: Types.ObjectId;
 }
 
+// Mongoose schema for storing likes information
 const likeSchema = new Schema<ILike>({
   blogId: {
-    type: Schema.Types.ObjectId
+    type: Schema.Types.ObjectId,
   },
   commentId: {
-    type: Schema.Types.ObjectId
+    type: Schema.Types.ObjectId,
   },
   userId: {
     type: Schema.Types.ObjectId,
-    ref: "User",
-    required: true
-  }
-})
+    ref: 'User',
+    required: true,
+  },
+});
 
-export default model<ILike>("Like", likeSchema)
+export default model<ILike>('Like', likeSchema);
