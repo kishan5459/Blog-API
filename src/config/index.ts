@@ -15,7 +15,7 @@ const config = {
   NODE_ENV: process.env.NODE_ENV!,
   WHITELIST_ORIGINS: [
     // 'https://blog.xyz.com',
-    // 'https://docs.blog-api.xyz.com',
+    'https://docs.blog-api.xyz.com',
   ],
   MONGO_URI: process.env.MONGO_URI!,
   LOGTAIL_SOURCE_TOKEN: process.env.LOGTAIL_SOURCE_TOKEN!,
