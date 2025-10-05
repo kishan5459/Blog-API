@@ -7,6 +7,7 @@ import { v2 as cloudinary } from 'cloudinary';
  * Custom modules
  */
 import { logger } from '@/lib/winston';
+import { clearBlogBySlug, clearBlogCacheForUser, clearBlogListCache, clearCommentsByBlogId } from '@/lib/cache';
 
 /**
  * Models
@@ -58,6 +59,11 @@ const deleteBlog = async (req: Request, res: Response) => {
     logger.info('Blog deleted successfully', {
       blogId,
     });
+
+    await clearBlogListCache();
+    await clearBlogCacheForUser(blog.author.toString());
+    await clearBlogBySlug(blog.slug);
+    await clearCommentsByBlogId(blogId);
 
     res.sendStatus(204);
   } catch (err) {

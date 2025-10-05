@@ -27,6 +27,7 @@ const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email } = req.body as UserData;
 
+    // Fetch user directly from the database
     const user = await User.findOne({ email })
       .select('username email password role')
       .lean()

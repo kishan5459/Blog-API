@@ -1,6 +1,7 @@
 /**
  * Custom modules
  */
+import { clearBlogBySlug, clearBlogCacheForUser } from '@/lib/cache';
 import { logger } from '@/lib/winston';
 
 /**
@@ -72,6 +73,9 @@ const likeBlog = async (req: Request, res: Response) => {
       blogId: blog._id,
       likesCount: blog.likesCount,
     });
+
+    await clearBlogBySlug(blog.slug);            
+    await clearBlogCacheForUser(blog.author.toString());
 
     /**
      * Sends a 200 OK response indicating the blog was liked successfully.

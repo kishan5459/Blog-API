@@ -2,6 +2,7 @@
  * Custom modules
  */
 import { logger } from '@/lib/winston';
+import { clearBlogBySlug, clearBlogCacheForUser, clearCommentsCache } from '@/lib/cache';
 
 /**
  * Models
@@ -84,6 +85,10 @@ const deleteComment = async (req: Request, res: Response): Promise<void> => {
       blogId: blog._id,
       commentsCount: blog.commentsCount,
     });
+
+    await clearBlogBySlug(blog.slug);                 
+    await clearBlogCacheForUser(blog.author.toString());
+    await clearCommentsCache();
 
     // Sends 204 successful status
     res.sendStatus(204);

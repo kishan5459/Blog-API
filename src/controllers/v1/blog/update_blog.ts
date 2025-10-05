@@ -2,6 +2,7 @@
  * Custom modules
  */
 import { logger } from '@/lib/winston';
+import { clearBlogBySlug, clearBlogCacheForUser, clearBlogListCache, clearCommentsByBlogId } from '@/lib/cache';
 
 /**
  * Models
@@ -57,6 +58,11 @@ const updateBlog = async (req: Request, res: Response) => {
     logger.info('Blog updated', {
       blog,
     });
+
+    await clearBlogListCache(); 
+    await clearBlogCacheForUser(blog.author.toString()); 
+    await clearBlogBySlug(blog.slug);
+    await clearCommentsByBlogId(blog._id.toString());
 
     res.status(200).json({
       blog,

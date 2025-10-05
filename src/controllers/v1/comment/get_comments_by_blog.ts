@@ -1,6 +1,7 @@
 /**
  * Custom modules
  */
+import redis from '@/lib/redis';
 import { logger } from '@/lib/winston';
 
 /**
@@ -39,12 +40,23 @@ const getCommentsByBlog = async (
       return;
     }
 
+    const cacheKey = `blog:comments:${blog._id}`;
+
+    const cachedComments = await redis.get(cacheKey);
+    if (cachedComments) {
+      logger.info(`Cache hit for comments of blog ${slug}`);
+      res.status(200).json({ comments: JSON.parse(cachedComments) });
+      return
+    }
+
     // Find the all comments where blog ID matches
     const allComments = await Comment.find({ blog: blog._id })
       .populate('blog', 'banner.url title slug')
       .populate('user', 'username firstName lastName')
       .lean()
       .exec();
+    
+    await redis.set(cacheKey, JSON.stringify(allComments), 300);
 
     // Responds 201 OK and the list of the comments
     res.status(201).json({

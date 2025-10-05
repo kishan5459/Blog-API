@@ -1,6 +1,7 @@
 /**
  * Custom modules
  */
+import redis from '@/lib/redis';
 import { logger } from '@/lib/winston';
 
 /**
@@ -20,6 +21,26 @@ const getBlogBySlug = async (req: Request, res: Response) => {
     const slug = req.params.slug;
 
     const user = await User.findById(userId).select('role').exec();
+
+    const cacheKey = `blog:slug:${slug}`;
+    const cachedBlog = await redis.getJSON<any>(cacheKey);
+
+    if (cachedBlog) {
+      logger.info(`✅ Cache hit for blog slug: ${slug}`);
+
+      // Check permissions for draft
+      if (cachedBlog.status === 'draft' && user?.role === 'user') {
+        res.status(403).json({
+          code: 'AuthorizationError',
+          message: 'Access denied, insufficient permissions',
+        });
+        return
+      }
+
+      res.status(200).json({ blog: cachedBlog, cached: true });
+      return
+    }
+
     const blog = await Blog.findOne({ slug })
       .select('-banner.publicId -__v')
       .populate('author', '-createdAt -updatedAt -__v')
@@ -46,6 +67,8 @@ const getBlogBySlug = async (req: Request, res: Response) => {
       });
       return;
     }
+
+    await redis.setJSON(cacheKey, blog, 300);
 
     res.status(200).json({
       blog,

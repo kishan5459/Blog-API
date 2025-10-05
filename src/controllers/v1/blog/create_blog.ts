@@ -8,6 +8,7 @@ import { JSDOM } from 'jsdom';
  * Custom modules
  */
 import { logger } from '@/lib/winston';
+import { clearBlogCacheForUser, clearBlogListCache } from '@/lib/cache';
 
 /**
  * Models
@@ -44,6 +45,9 @@ const createBlog = async (req: Request, res: Response) => {
     });
 
     logger.info('New blog created', newBlog);
+
+    await clearBlogListCache(); 
+    await clearBlogCacheForUser(newBlog.author.toString()); 
 
     res.status(201).json({
       blog: newBlog,

@@ -2,6 +2,7 @@
  * Custom modules
  */
 import config from '@/config';
+import redis from '@/lib/redis';
 import { logger } from '@/lib/winston';
 
 /**
@@ -31,6 +32,17 @@ const getBlogsByUser = async (req: Request, res: Response) => {
       .select('role')
       .exec();
 
+    const role = currentUser?.role || 'user';
+
+    const cacheKey = `userBlogs:${userId}:${role}:limit=${limit}:offset=${offset}`;
+
+    const cached = await redis.getJSON<{ total: number; blogs: any[] }>(cacheKey);
+    if (cached) {
+      logger.info(`✅ Cache hit for ${cacheKey}`);
+      res.status(200).json({ ...cached, limit, offset, cached: true });
+      return;
+    }
+
     // Show only the published post to a normal user
     if (currentUser?.role === 'user') {
       query.status = 'published';
@@ -46,6 +58,8 @@ const getBlogsByUser = async (req: Request, res: Response) => {
       .lean()
       .exec();
 
+    await redis.setJSON(cacheKey, { total, blogs }, 300);
+    
     res.status(200).json({
       limit,
       offset,

@@ -13,6 +13,7 @@ import Blog from '@/models/blog';
  * Type
  */
 import { Request, Response } from 'express';
+import { clearBlogBySlug, clearBlogCacheForUser } from '@/lib/cache';
 
 /**
  * @function unlikeBlog
@@ -68,6 +69,9 @@ const unlikeBlog = async (req: Request, res: Response): Promise<void> => {
       blogId: blog._id,
       likesCount: blog.likesCount,
     });
+
+    await clearBlogBySlug(blog.slug);            
+    await clearBlogCacheForUser(blog.author.toString());
 
     // Send 204 No Content to indicate successful unlike with no response body
     res.sendStatus(204);

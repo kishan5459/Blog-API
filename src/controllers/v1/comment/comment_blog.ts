@@ -2,6 +2,7 @@
  * Custom modules
  */
 import { logger } from '@/lib/winston';
+import { clearBlogBySlug, clearBlogCacheForUser, clearCommentsCache } from '@/lib/cache';
 
 /**
  * Models
@@ -14,7 +15,7 @@ import Comment from '@/models/comment';
  */
 import type { Request, Response } from 'express';
 import type { IComment } from '@/models/comment';
-import type { Types } from 'mongoose';
+
 type RequestBody = {
   content: string;
 };
@@ -67,6 +68,10 @@ const createComment = async (req: Request, res: Response): Promise<void> => {
       blogId: blog._id,
       commentsCount: blog.commentsCount,
     });
+
+    await clearBlogBySlug(blog.slug);                
+    await clearBlogCacheForUser(blog.author.toString());
+    await clearCommentsCache()
 
     // Respond with 201 Created and return the new comment
     res.status(201).json({

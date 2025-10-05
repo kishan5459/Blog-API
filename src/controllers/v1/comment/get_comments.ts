@@ -13,6 +13,7 @@ import Comment from '@/models/comment';
  * Types
  */
 import type { Request, Response } from 'express';
+import redis from '@/lib/redis';
 type RequestQuery = {
   offset: string;
   limit: string;
@@ -22,19 +23,40 @@ const getComments = async (req: Request, res: Response): Promise<void> => {
   const { offset = config.defaultResOffset, limit = config.defaultResLimit } =
     req.query as RequestQuery;
 
+  const offsetNum = Number(offset);
+  const limitNum = Number(limit);
+
+  const cacheKey = `comments:offset:${offsetNum}:limit:${limitNum}`;
+
   try {
+    const cached = await redis.get(cacheKey);
+    if (cached) {
+      console.log('Cache hit for comments');
+      res.status(200).json(JSON.parse(cached));
+      return;
+    }
+
     const comments = await Comment.find()
       .populate('blog', 'banner.url title slug')
       .populate('user', 'username email firstName lastName')
-      .limit(Number(limit))
-      .skip(Number(offset))
+      .limit(limitNum)
+      .skip(offsetNum)
       .lean()
       .exec();
     const total = await Comment.countDocuments();
 
+    const response = {
+      offset: offsetNum,
+      limit: limitNum,
+      total,
+      comments,
+    };
+
+    await redis.set(cacheKey, JSON.stringify(response), 3600);
+
     res.status(200).json({
-      offset: Number(offset),
-      limit: Number(limit),
+      offset: offsetNum,
+      limit: limitNum,
       total,
       comments,
     });

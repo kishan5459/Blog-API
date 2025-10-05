@@ -20,6 +20,7 @@ import { logger, logtail } from '@/lib/winston';
 import limiter from '@/lib/express_rate_limit';
 import config from '@/config';
 import httpLogger from '@/middlewares/httpLogger';
+import redis from '@/lib/redis';
 
 /**
  * Router
@@ -95,6 +96,8 @@ app.use(limiter);
   try {
     await connectToDatabase();
 
+    await redis.connect();
+
     app.use('/v1', v1Routes);
 
     app.listen(config.PORT, () => {
@@ -121,6 +124,7 @@ app.use(limiter);
 const handleServerShutdown = async () => {
   try {
     await disconnectFromDatabase();
+    await redis.disconnect();
     logger.warn('Server SHUTDOWN');
     await logtail.flush(); // Ensure all logs are sent before exiting
     process.exit(0);

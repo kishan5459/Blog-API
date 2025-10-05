@@ -2,6 +2,7 @@
  * Custom modules
  */
 import config from '@/config';
+import redis from '@/lib/redis';
 import { logger } from '@/lib/winston';
 
 /**
@@ -32,6 +33,22 @@ const getAllBlogs = async (req: Request, res: Response) => {
       query.status = 'published';
     }
 
+    const cacheKey = `blogs:${user?.role || 'user'}:limit=${limit}:offset=${offset}`;
+
+    const cached = await redis.getJSON<{ total: number; blogs: any[] }>(cacheKey);
+
+    if (cached) {
+      logger.info(`✅ Cache hit for key: ${cacheKey}`);
+      res.status(200).json({
+        limit,
+        offset,
+        total: cached.total,
+        blogs: cached.blogs,
+        cached: true,
+      });
+      return;
+    }
+
     const total = await Blog.countDocuments();
     const blogs = await Blog.find()
       .select('-banner.publicId -__v')
@@ -41,6 +58,8 @@ const getAllBlogs = async (req: Request, res: Response) => {
       .sort({ publishedAt: 'desc' })
       .lean()
       .exec();
+
+    await redis.setJSON(cacheKey, { total, blogs }, 300);
 
     res.status(200).json({
       limit,
